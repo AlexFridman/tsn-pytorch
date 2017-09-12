@@ -1,10 +1,11 @@
-import torch.utils.data as data
-
-from PIL import Image
 import os
 import os.path
+
 import numpy as np
+import torch.utils.data as data
+from PIL import Image
 from numpy.random import randint
+
 
 class VideoRecord(object):
     def __init__(self, row):
@@ -27,7 +28,7 @@ class TSNDataSet(data.Dataset):
     def __init__(self, root_path, list_file,
                  num_segments=3, new_length=1, modality='RGB',
                  image_tmpl='img_{:05d}.jpg', transform=None,
-                 force_grayscale=False, random_shift=True, test_mode=False):
+                 random_shift=True, test_mode=False):
 
         self.root_path = root_path
         self.list_file = list_file
@@ -40,16 +41,32 @@ class TSNDataSet(data.Dataset):
         self.test_mode = test_mode
 
         if self.modality == 'RGBDiff':
-            self.new_length += 1# Diff needs one more image to calculate diff
+            self.new_length += 1  # Diff needs one more image to calculate diff
 
         self._parse_list()
 
     def _load_image(self, directory, idx):
+        def to_interval(x):
+            x_0 = x.min()
+            x_1 = x.max()
+
+            return np.clip(255. * (x - x_0) / (x_1 - x_0), 0., 255.)
+
         if self.modality == 'RGB' or self.modality == 'RGBDiff':
             return [Image.open(os.path.join(directory, self.image_tmpl.format(idx))).convert('RGB')]
         elif self.modality == 'Flow':
-            x_img = Image.open(os.path.join(directory, self.image_tmpl.format('x', idx))).convert('L')
-            y_img = Image.open(os.path.join(directory, self.image_tmpl.format('y', idx))).convert('L')
+            img_path = os.path.join(directory, self.image_tmpl.format(idx))
+            height, width, n_channels = 240, 320, 2
+
+            img = np.fromfile(img_path, np.float32, height * width * n_channels)
+            img = img.reshape(height, width, n_channels)
+            img[0, 0, :] = img.reshape(height * width, n_channels)[1:].mean(axis=0)
+            x_img, y_img = to_interval(img[:, :, 0]), to_interval(img[:, :, 1])
+
+            x_img, y_img = Image.fromarray(x_img, mode='L'), Image.fromarray(y_img, mode='L')
+
+            # x_img = Image.open(os.path.join(directory, self.image_tmpl.format('x', idx))).convert('L')
+            # y_img = Image.open(os.path.join(directory, self.image_tmpl.format('y', idx))).convert('L')
 
             return [x_img, y_img]
 
@@ -65,7 +82,8 @@ class TSNDataSet(data.Dataset):
 
         average_duration = (record.num_frames - self.new_length + 1) // self.num_segments
         if average_duration > 0:
-            offsets = np.multiply(list(range(self.num_segments)), average_duration) + randint(average_duration, size=self.num_segments)
+            offsets = np.multiply(list(range(self.num_segments)), average_duration) + randint(average_duration,
+                                                                                              size=self.num_segments)
         elif record.num_frames > self.num_segments:
             offsets = np.sort(randint(record.num_frames - self.new_length + 1, size=self.num_segments))
         else:

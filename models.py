@@ -1,8 +1,9 @@
 from torch import nn
+from torch.nn.init import normal, constant
 
 from ops.basic_ops import ConsensusModule, Identity
 from transforms import *
-from torch.nn.init import normal, constant
+
 
 class TSN(nn.Module):
     def __init__(self, num_class, num_segments, modality,
@@ -162,7 +163,7 @@ TSN Configurations:
                 normal_weight.append(ps[0])
                 if len(ps) == 2:
                     normal_bias.append(ps[1])
-                  
+
             elif isinstance(m, torch.nn.BatchNorm1d):
                 bn.extend(list(m.parameters()))
             elif isinstance(m, torch.nn.BatchNorm2d):
@@ -223,7 +224,6 @@ TSN Configurations:
 
         return new_data
 
-
     def _construct_flow_model(self, base_model):
         # modify the convolution layers
         # Torch models are usually defined in a hierarchical way.
@@ -236,7 +236,7 @@ TSN Configurations:
         # modify parameters, assume the first blob contains the convolution kernels
         params = [x.clone() for x in conv_layer.parameters()]
         kernel_size = params[0].size()
-        new_kernel_size = kernel_size[:1] + (2 * self.new_length, ) + kernel_size[2:]
+        new_kernel_size = kernel_size[:1] + (2 * self.new_length,) + kernel_size[2:]
         new_kernels = params[0].data.mean(dim=1, keepdim=True).expand(new_kernel_size).contiguous()
 
         new_conv = nn.Conv2d(2 * self.new_length, conv_layer.out_channels,
@@ -244,8 +244,8 @@ TSN Configurations:
                              bias=True if len(params) == 2 else False)
         new_conv.weight.data = new_kernels
         if len(params) == 2:
-            new_conv.bias.data = params[1].data # add bias if neccessary
-        layer_name = list(container.state_dict().keys())[0][:-7] # remove .weight suffix to get the layer name
+            new_conv.bias.data = params[1].data  # add bias if neccessary
+        layer_name = list(container.state_dict().keys())[0][:-7]  # remove .weight suffix to get the layer name
 
         # replace the first convlution layer
         setattr(container, layer_name, new_conv)

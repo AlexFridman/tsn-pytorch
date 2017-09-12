@@ -1,25 +1,31 @@
-import argparse
 import os
-import time
 import shutil
-import torch
-import torchvision
-import torch.nn.parallel
+import time
+
 import torch.backends.cudnn as cudnn
+import torch.nn.parallel
 import torch.optim
 from torch.nn.utils import clip_grad_norm
 
 from dataset import TSNDataSet
 from models import TSN
-from transforms import *
 from opts import parser
+from transforms import *
 
 best_prec1 = 0
+
+args_str = """ucf101 Flow \
+    /data/data/ucf101_preprocessed/split_01/file_lists/train_flow.txt \
+     /data/data/ucf101_preprocessed/split_01/file_lists/test_flow.txt \
+   --arch BNInception --num_segments 3 \
+   --gd 20 --lr 0.001 --lr_steps 190 300 --epochs 340 \
+   -b 32 -j 3 \
+   --snapshot_pref ucf101_bninception_"""
 
 
 def main():
     global args, best_prec1
-    args = parser.parse_args()
+    args = parser.parse_args(args_str.split())
 
     if args.dataset == 'ucf101':
         num_class = 101
@@ -28,7 +34,7 @@ def main():
     elif args.dataset == 'kinetics':
         num_class = 400
     else:
-        raise ValueError('Unknown dataset '+args.dataset)
+        raise ValueError('Unknown dataset ' + args.dataset)
 
     model = TSN(num_class, args.num_segments, args.modality,
                 base_model=args.arch,
@@ -51,7 +57,7 @@ def main():
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict'])
             print(("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.evaluate, checkpoint['epoch'])))
+                   .format(args.evaluate, checkpoint['epoch'])))
         else:
             print(("=> no checkpoint found at '{}'".format(args.resume)))
 
@@ -72,7 +78,7 @@ def main():
         TSNDataSet("", args.train_list, num_segments=args.num_segments,
                    new_length=data_length,
                    modality=args.modality,
-                   image_tmpl="img_{:05d}.jpg" if args.modality in ["RGB", "RGBDiff"] else args.flow_prefix+"{}_{:05d}.jpg",
+                   image_tmpl="{:04d}.jpg" if args.modality in ['RGB', 'RGBDiff'] else "{:04d}.flo",
                    transform=torchvision.transforms.Compose([
                        train_augmentation,
                        Stack(roll=args.arch == 'BNInception'),
@@ -86,7 +92,7 @@ def main():
         TSNDataSet("", args.val_list, num_segments=args.num_segments,
                    new_length=data_length,
                    modality=args.modality,
-                   image_tmpl="img_{:05d}.jpg" if args.modality in ["RGB", "RGBDiff"] else args.flow_prefix+"{}_{:05d}.jpg",
+                   image_tmpl="{:04d}.jpg" if args.modality in ['RGB', 'RGBDiff'] else "{:04d}.flo",
                    random_shift=False,
                    transform=torchvision.transforms.Compose([
                        GroupScale(int(scale_size)),
@@ -167,11 +173,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1,5))
+        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
         top5.update(prec5[0], input.size(0))
-
 
         # compute gradient and do SGD step
         optimizer.zero_grad()
@@ -191,13 +196,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
         if i % args.print_freq == 0:
             print(('Epoch: [{0}][{1}/{2}], lr: {lr:.5f}\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   epoch, i, len(train_loader), batch_time=batch_time,
-                   data_time=data_time, loss=losses, top1=top1, top5=top5, lr=optimizer.param_groups[-1]['lr'])))
+                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                epoch, i, len(train_loader), batch_time=batch_time,
+                data_time=data_time, loss=losses, top1=top1, top5=top5, lr=optimizer.param_groups[-1]['lr'])))
 
 
 def validate(val_loader, model, criterion, iter, logger=None):
@@ -220,7 +225,7 @@ def validate(val_loader, model, criterion, iter, logger=None):
         loss = criterion(output, target_var)
 
         # measure accuracy and record loss
-        prec1, prec5 = accuracy(output.data, target, topk=(1,5))
+        prec1, prec5 = accuracy(output.data, target, topk=(1, 5))
 
         losses.update(loss.data[0], input.size(0))
         top1.update(prec1[0], input.size(0))
@@ -232,15 +237,15 @@ def validate(val_loader, model, criterion, iter, logger=None):
 
         if i % args.print_freq == 0:
             print(('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
-                  'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
-                   i, len(val_loader), batch_time=batch_time, loss=losses,
-                   top1=top1, top5=top5)))
+                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+                   'Prec@1 {top1.val:.3f} ({top1.avg:.3f})\t'
+                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
+                i, len(val_loader), batch_time=batch_time, loss=losses,
+                top1=top1, top5=top5)))
 
     print(('Testing Results: Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f} Loss {loss.avg:.5f}'
-          .format(top1=top1, top5=top5, loss=losses)))
+           .format(top1=top1, top5=top5, loss=losses)))
 
     return top1.avg
 
@@ -255,6 +260,7 @@ def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
