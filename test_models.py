@@ -35,7 +35,7 @@ parser.add_argument('--flow_prefix', type=str, default='')
 args = parser.parse_args()
 
 if args.dataset == 'ucf101':
-    num_class = 108
+    num_class = 101
 elif args.dataset == 'hmdb51':
     num_class = 51
 elif args.dataset == 'kinetics':
