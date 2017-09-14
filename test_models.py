@@ -9,6 +9,7 @@ from dataset import TSNDataSet
 from models import TSN
 from transforms import *
 
+
 # options
 parser = argparse.ArgumentParser(
     description="Standard video-level testing")
@@ -34,7 +35,7 @@ parser.add_argument('--flow_prefix', type=str, default='')
 args = parser.parse_args()
 
 if args.dataset == 'ucf101':
-    num_class = 101
+    num_class = 108
 elif args.dataset == 'hmdb51':
     num_class = 51
 elif args.dataset == 'kinetics':

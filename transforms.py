@@ -1,10 +1,11 @@
-import torchvision
-import random
-from PIL import Image, ImageOps
-import numpy as np
-import numbers
 import math
+import numbers
+import random
+
+import numpy as np
 import torch
+import torchvision
+from PIL import Image, ImageOps
 
 
 class GroupRandomCrop(object):
@@ -25,7 +26,7 @@ class GroupRandomCrop(object):
         y1 = random.randint(0, h - th)
 
         for img in img_group:
-            assert(img.size[0] == w and img.size[1] == h)
+            assert (img.size[0] == w and img.size[1] == h)
             if w == tw and h == th:
                 out_images.append(img)
             else:
@@ -45,6 +46,7 @@ class GroupCenterCrop(object):
 class GroupRandomHorizontalFlip(object):
     """Randomly horizontally flips the given PIL.Image with a probability of 0.5
     """
+
     def __init__(self, is_flow=False):
         self.is_flow = is_flow
 
@@ -64,8 +66,8 @@ class GroupNormalize(object):
         self.std = std
 
     def __call__(self, tensor):
-        rep_mean = self.mean * (tensor.size()[0]//len(self.mean))
-        rep_std = self.std * (tensor.size()[0]//len(self.std))
+        rep_mean = self.mean * (tensor.size()[0] // len(self.mean))
+        rep_std = self.std * (tensor.size()[0] // len(self.std))
 
         # TODO: make efficient
         for t, m, s in zip(tensor, rep_mean, rep_std):
@@ -128,7 +130,6 @@ class GroupOverSample(object):
 
 
 class GroupMultiScaleCrop(object):
-
     def __init__(self, input_size, scales=None, max_distort=1, fix_crop=True, more_fix_crop=True):
         self.scales = scales if scales is not None else [1, 875, .75, .66]
         self.max_distort = max_distort
@@ -198,7 +199,7 @@ class GroupMultiScaleCrop(object):
             ret.append((1 * w_step, 3 * h_step))  # lower left quarter
             ret.append((3 * w_step, 3 * h_step))  # lower righ quarter
 
-        return ret
+        return [(int(x), int(y)) for x, y in ret]
 
 
 class GroupRandomSizedCrop(object):
@@ -208,6 +209,7 @@ class GroupRandomSizedCrop(object):
     size: size of the smaller edge
     interpolation: Default: PIL.Image.BILINEAR
     """
+
     def __init__(self, size, interpolation=Image.BILINEAR):
         self.size = size
         self.interpolation = interpolation
@@ -238,7 +240,7 @@ class GroupRandomSizedCrop(object):
             out_group = list()
             for img in img_group:
                 img = img.crop((x1, y1, x1 + w, y1 + h))
-                assert(img.size == (w, h))
+                assert (img.size == (w, h))
                 out_group.append(img.resize((self.size, self.size), self.interpolation))
             return out_group
         else:
@@ -249,7 +251,6 @@ class GroupRandomSizedCrop(object):
 
 
 class Stack(object):
-
     def __init__(self, roll=False):
         self.roll = roll
 
@@ -266,6 +267,7 @@ class Stack(object):
 class ToTorchFormatTensor(object):
     """ Converts a PIL.Image (RGB) or numpy.ndarray (H x W x C) in the range [0, 255]
     to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0] """
+
     def __init__(self, div=True):
         self.div = div
 
@@ -284,7 +286,6 @@ class ToTorchFormatTensor(object):
 
 
 class IdentityTransform(object):
-
     def __call__(self, data):
         return data
 

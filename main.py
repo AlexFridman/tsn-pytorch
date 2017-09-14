@@ -14,21 +14,13 @@ from transforms import *
 
 best_prec1 = 0
 
-args_str = """ucf101 Flow \
-    /data/data/ucf101_preprocessed/split_01/file_lists/train_flow.txt \
-     /data/data/ucf101_preprocessed/split_01/file_lists/test_flow.txt \
-   --arch BNInception --num_segments 3 \
-   --gd 20 --lr 0.001 --lr_steps 190 300 --epochs 340 \
-   -b 32 -j 3 \
-   --snapshot_pref ucf101_bninception_"""
-
 
 def main():
     global args, best_prec1
-    args = parser.parse_args(args_str.split())
+    args = parser.parse_args()
 
     if args.dataset == 'ucf101':
-        num_class = 101
+        num_class = 108
     elif args.dataset == 'hmdb51':
         num_class = 51
     elif args.dataset == 'kinetics':
